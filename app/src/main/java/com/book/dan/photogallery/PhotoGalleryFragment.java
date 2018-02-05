@@ -1,5 +1,6 @@
 package com.book.dan.photogallery;
 
+import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -10,6 +11,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import java.io.IOException;
@@ -49,15 +51,15 @@ public class PhotoGalleryFragment extends Fragment {
     }
 
     private class PhotoHolder extends RecyclerView.ViewHolder{
-        private TextView mTitleTextView;
+        private ImageView mImageView;
 
         public PhotoHolder(View itemView) {
             super(itemView);
-            mTitleTextView = (TextView) itemView;
+            mImageView = (ImageView) itemView.findViewById(R.id.item_image_view);
         }
 
-        public void bindGalleryItem(GalleryItem item){
-            mTitleTextView.setText(item.toString());
+        public void bindGalleryDrawable(Drawable drawable){
+            mImageView.setImageDrawable(drawable);
         }
     }
 
@@ -70,14 +72,15 @@ public class PhotoGalleryFragment extends Fragment {
 
         @Override
         public PhotoHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            TextView textView = new TextView(getActivity());
-            return new PhotoHolder(textView);
+            View v = LayoutInflater.from(getActivity()).inflate(R.layout.gallery_item,parent,false);
+            return new PhotoHolder(v);
         }
 
         @Override
         public void onBindViewHolder(PhotoHolder holder, int position) {
             GalleryItem item = mGalleryItems.get(position);
-            holder.bindGalleryItem(item);
+            Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
+            holder.bindGalleryDrawable(placeholder);
         }
 
         @Override
