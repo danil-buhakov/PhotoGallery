@@ -40,8 +40,7 @@ public class PhotoGalleryFragment extends Fragment {
         setRetainInstance(true);
         updateItems();
 
-        Intent i = PollService.newIntent(getActivity());
-        getActivity().startService(i);
+        PollService.setServiceAlarm(getActivity(),true);
 
         Handler handler = new Handler();
         mThumbnailDownloader = new ThumbnailDownloader<>(handler);
