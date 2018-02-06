@@ -1,13 +1,20 @@
 package com.book.dan.photogallery;
 
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
+import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.Nullable;
+import android.support.annotation.RequiresApi;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -26,11 +33,12 @@ import java.util.List;
 
 public class PhotoGalleryFragment extends Fragment {
     private static final String TAG = "PhotoGalleryFragment";
+    private static final int JOB_ID = 1;
     private RecyclerView mRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
     private ThumbnailDownloader<PhotoHolder> mThumbnailDownloader;
 
-    public static PhotoGalleryFragment newInstance(){
+    public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
     }
 
@@ -45,7 +53,7 @@ public class PhotoGalleryFragment extends Fragment {
         mThumbnailDownloader.setThumbnailDownloadListener(new ThumbnailDownloader.ThumbnailDownloadListener<PhotoHolder>() {
             @Override
             public void onThumbnailDownloaded(PhotoHolder target, Bitmap thumbnail) {
-                Drawable drawable = new BitmapDrawable(getResources(),thumbnail);
+                Drawable drawable = new BitmapDrawable(getResources(), thumbnail);
                 target.bindGalleryDrawable(drawable);
             }
         });
@@ -55,25 +63,26 @@ public class PhotoGalleryFragment extends Fragment {
         Log.i(TAG, "Background thread started");
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         super.onCreateOptionsMenu(menu, inflater);
-        inflater.inflate(R.menu.fragment_photo_gallery,menu);
+        inflater.inflate(R.menu.fragment_photo_gallery, menu);
 
         MenuItem searchItem = menu.findItem(R.id.menu_item_search);
         final SearchView searchView = (SearchView) searchItem.getActionView();
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
-                Log.i(TAG,"QueryTextSubmit: "+query);
-                QueryPreferances.setSearchQuery(getActivity(),query);
+                Log.i(TAG, "QueryTextSubmit: " + query);
+                QueryPreferances.setSearchQuery(getActivity(), query);
                 updateItems();
                 return true;
             }
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                Log.i(TAG,"QueryTextChange: "+newText);
+                Log.i(TAG, "QueryTextChange: " + newText);
                 return false;
             }
         });
@@ -81,26 +90,39 @@ public class PhotoGalleryFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 String query = QueryPreferances.getStoredQuery(getActivity());
-                searchView.setQuery(query,false);
+                searchView.setQuery(query, false);
             }
         });
         MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
-        if(PollService.isServiceAlarmOn(getActivity()))
+        if (hasBeenScheduled())
             toggleItem.setTitle(R.string.stop_polling);
         else
             toggleItem.setTitle(R.string.start_polling);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    private boolean hasBeenScheduled(){
+        JobScheduler scheduler = (JobScheduler) getActivity().getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        boolean hasBeenScheduled = false;
+        for (JobInfo info : scheduler.getAllPendingJobs()) {
+            if (info.getId() == JOB_ID) {
+                hasBeenScheduled = true;
+            }
+        }
+        return hasBeenScheduled;
+    }
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch(item.getItemId()){
+        switch (item.getItemId()) {
             case R.id.menu_item_clear:
-                QueryPreferances.setSearchQuery(getActivity(),null);
+                QueryPreferances.setSearchQuery(getActivity(), null);
                 updateItems();
                 return true;
             case R.id.menu_item_toggle_polling:
-                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
-                PollService.setServiceAlarm(getActivity(),shouldStartAlarm);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    switchScheduledTask();
+                }
                 getActivity().invalidateOptionsMenu();
                 return true;
             default:
@@ -108,7 +130,23 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private void updateItems(){
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    private void switchScheduledTask(){
+        JobScheduler scheduler = (JobScheduler) getActivity().getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        if(!hasBeenScheduled()) {
+            JobInfo jobInfo = new JobInfo.Builder(
+                    JOB_ID, new ComponentName(getActivity(),JobPollService.class))
+                    .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+                    .setPeriodic(30*1000)
+                    .setPersisted(true)
+                    .build();
+            scheduler.schedule(jobInfo);
+        }
+        else
+            scheduler.cancel(JOB_ID);
+    }
+
+    private void updateItems() {
         String query = QueryPreferances.getStoredQuery(getActivity());
         new FetchItemTask(query).execute();
     }
@@ -116,15 +154,15 @@ public class PhotoGalleryFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View v = inflater.inflate(R.layout.fragment_photo_gallery,container,false);
+        View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
         mRecyclerView = (RecyclerView) v.findViewById(R.id.photo_recycler_view);
-        mRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(),3));
+        mRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
         setupAdapter();
         return v;
     }
 
-    private void setupAdapter(){
-        if(isAdded()){
+    private void setupAdapter() {
+        if (isAdded()) {
             mRecyclerView.setAdapter(new PhotoAdapter(mItems));
         }
     }
@@ -142,7 +180,7 @@ public class PhotoGalleryFragment extends Fragment {
         Log.i(TAG, "Background thread destroyed");
     }
 
-    private class PhotoHolder extends RecyclerView.ViewHolder{
+    private class PhotoHolder extends RecyclerView.ViewHolder {
         private ImageView mImageView;
 
         public PhotoHolder(View itemView) {
@@ -150,21 +188,21 @@ public class PhotoGalleryFragment extends Fragment {
             mImageView = (ImageView) itemView.findViewById(R.id.item_image_view);
         }
 
-        public void bindGalleryDrawable(Drawable drawable){
+        public void bindGalleryDrawable(Drawable drawable) {
             mImageView.setImageDrawable(drawable);
         }
     }
 
-    private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder>{
+    private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder> {
         private List<GalleryItem> mGalleryItems;
 
-        public PhotoAdapter(List<GalleryItem> items){
+        public PhotoAdapter(List<GalleryItem> items) {
             mGalleryItems = items;
         }
 
         @Override
         public PhotoHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-            View v = LayoutInflater.from(getActivity()).inflate(R.layout.gallery_item,parent,false);
+            View v = LayoutInflater.from(getActivity()).inflate(R.layout.gallery_item, parent, false);
             return new PhotoHolder(v);
         }
 
@@ -173,7 +211,7 @@ public class PhotoGalleryFragment extends Fragment {
             GalleryItem item = mGalleryItems.get(position);
             Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
             holder.bindGalleryDrawable(placeholder);
-            mThumbnailDownloader.queueThumbnail(holder,item.getUrl());
+            mThumbnailDownloader.queueThumbnail(holder, item.getUrl());
         }
 
         @Override
@@ -182,10 +220,10 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private class FetchItemTask extends AsyncTask<Void,Void,List<GalleryItem>>{
+    private class FetchItemTask extends AsyncTask<Void, Void, List<GalleryItem>> {
         private String mQuery;
 
-        public FetchItemTask(String query){
+        public FetchItemTask(String query) {
             mQuery = query;
         }
 
@@ -197,10 +235,9 @@ public class PhotoGalleryFragment extends Fragment {
 
         @Override
         protected List<GalleryItem> doInBackground(Void... voids) {
-            if(mQuery==null){
+            if (mQuery == null) {
                 return new FlickrFetchr().fetchRecentPhotos();
-            }
-            else{
+            } else {
                 return new FlickrFetchr().searchPhotos(mQuery);
             }
         }
