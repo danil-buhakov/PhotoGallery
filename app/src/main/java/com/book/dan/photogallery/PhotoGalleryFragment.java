@@ -24,7 +24,7 @@ import android.support.v7.widget.SearchView;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PhotoGalleryFragment extends Fragment {
+public class PhotoGalleryFragment extends VisibleFragment {
     private static final String TAG = "PhotoGalleryFragment";
     private RecyclerView mRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
@@ -99,6 +99,8 @@ public class PhotoGalleryFragment extends Fragment {
                 updateItems();
                 return true;
             case R.id.menu_item_toggle_polling:
+
+                getActivity().sendBroadcast(new Intent(PollService.ACTION_SHOW_NOTIFICATION),PollService.PERM_PRIVATE);
                 boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
                 PollService.setServiceAlarm(getActivity(),shouldStartAlarm);
                 getActivity().invalidateOptionsMenu();
