@@ -1,6 +1,7 @@
 package com.book.dan.photogallery;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
@@ -12,6 +13,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 public class PhotoPageFragment extends VisibleFragment {
     private static final String ARG_URI = "photo_page_uri";
@@ -62,7 +64,12 @@ public class PhotoPageFragment extends VisibleFragment {
         });
 
         mWebView.setWebViewClient(new WebViewClient());
-        mWebView.loadUrl(mUri.toString());
+        if((mUri.getScheme().equalsIgnoreCase("https"))||(mUri.getScheme().equalsIgnoreCase("http")))
+            mWebView.loadUrl(mUri.toString());
+        else{
+            Intent i = new Intent(Intent.ACTION_VIEW,mUri);
+            startActivity(i);
+        }
         return v;
     }
 }
