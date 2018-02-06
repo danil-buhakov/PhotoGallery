@@ -142,16 +142,28 @@ public class PhotoGalleryFragment extends VisibleFragment {
         Log.i(TAG, "Background thread destroyed");
     }
 
-    private class PhotoHolder extends RecyclerView.ViewHolder{
+    private class PhotoHolder extends RecyclerView.ViewHolder implements View.OnClickListener{
         private ImageView mImageView;
+        private GalleryItem mGalleryItem;
 
         public PhotoHolder(View itemView) {
             super(itemView);
             mImageView = (ImageView) itemView.findViewById(R.id.item_image_view);
+            itemView.setOnClickListener(this);
         }
 
         public void bindGalleryDrawable(Drawable drawable){
             mImageView.setImageDrawable(drawable);
+        }
+
+        public void bindGalleryItem(GalleryItem galleryItem){
+            mGalleryItem = galleryItem;
+        }
+
+        @Override
+        public void onClick(View v) {
+            Intent i = new Intent(Intent.ACTION_VIEW,mGalleryItem.getPhotoPageUri());
+            startActivity(i);
         }
     }
 
@@ -173,6 +185,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
             GalleryItem item = mGalleryItems.get(position);
             Drawable placeholder = getResources().getDrawable(R.drawable.bill_up_close);
             holder.bindGalleryDrawable(placeholder);
+            holder.bindGalleryItem(item);
             mThumbnailDownloader.queueThumbnail(holder,item.getUrl());
         }
 
