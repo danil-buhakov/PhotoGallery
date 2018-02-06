@@ -99,8 +99,6 @@ public class PhotoGalleryFragment extends VisibleFragment {
                 updateItems();
                 return true;
             case R.id.menu_item_toggle_polling:
-
-                getActivity().sendBroadcast(new Intent(PollService.ACTION_SHOW_NOTIFICATION),PollService.PERM_PRIVATE);
                 boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
                 PollService.setServiceAlarm(getActivity(),shouldStartAlarm);
                 getActivity().invalidateOptionsMenu();
